@@ -1,5 +1,5 @@
 import Budget from "../models/budgetModel.js";
-import Expense from "../models/expense.js";
+import Expense from "../models/Expense.js";
 
 // ==========================
 // Add Budget
