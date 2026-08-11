@@ -16,7 +16,10 @@ dns.setServers(['1.1.1.1', '8.8.8.8']);
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://expense-tracker-iota-flax.vercel.app/",
+    ],
     credentials: true,
   })
 );
