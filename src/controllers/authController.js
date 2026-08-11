@@ -3,6 +3,13 @@ import jwt from "jsonwebtoken";
 import { getAuth } from "firebase-admin/auth";
 import adminApp from "../config/firebaseAdmin.js";
 
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+};
+
 // ==========================
 // Register User
 // ==========================
@@ -101,11 +108,7 @@ export const loginUser = async (req, res) => {
     );
 
     // Store JWT in HTTP-only Cookie
-    res.cookie("token", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("token", token, cookieOptions);
 
     return res.status(200).json({
       success: true,
@@ -185,11 +188,7 @@ export const googleLogin = async (req, res) => {
     );
 
     // Store JWT in HTTP-only Cookie
-    res.cookie("token", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+   res.cookie("token", token, cookieOptions);
 
     return res.status(200).json({
       success: true,
@@ -297,10 +296,7 @@ export const updateCurrentUser = async (req, res) => {
 // ==========================
 export const logoutUser = async (req, res) => {
   try {
-    res.clearCookie("token", {
-      httpOnly: true,
-      sameSite: "lax",
-    });
+    res.clearCookie("token", cookieOptions);
 
     return res.status(200).json({
       success: true,
@@ -314,4 +310,4 @@ export const logoutUser = async (req, res) => {
       message: "Failed to logout",
     });
   }
-};
+}; 
