@@ -10,25 +10,25 @@ import profileRoutes from "./routes/profileRoutes.js";
 
 const app = express();
 
-import dns from 'dns';
-dns.setServers(['1.1.1.1', '8.8.8.8']);
+import dns from "dns";
+
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 // Middleware
 app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "https://expense-tracker-iota-flax.vercel.app/",
+      "https://expense-tracker-iota-flax.vercel.app",
     ],
     credentials: true,
   })
 );
 
 app.use(express.json());
-
 app.use(express.urlencoded({ extended: true }));
-
 app.use(cookieParser());
+
 app.use("/api/auth", authRoutes);
 app.use("/api/expense", expenseRoutes);
 app.use("/api/dashboard", dashboardRoutes);
@@ -41,4 +41,4 @@ app.get("/", (req, res) => {
   res.send("🚀 ExpenseFlow Backend Running...");
 });
 
-export default app; 
+export default app;
