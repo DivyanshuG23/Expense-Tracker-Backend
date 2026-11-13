@@ -1,7 +1,6 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
-import { getAuth } from "firebase-admin/auth";
-import adminApp from "../config/firebaseAdmin.js";
+import { verifyGoogleIdToken } from "../services/googleAuthService.js";
 
 const cookieOptions = {
   httpOnly: true,
@@ -135,27 +134,39 @@ export const loginUser = async (req, res) => {
 // ==========================
 export const googleLogin = async (req, res) => {
   try {
-    const { idToken } = req.body;
+    const rawToken = req.body?.idToken || req.body?.credential;
 
     // Validation
-    if (!idToken) {
+    if (!rawToken || typeof rawToken !== "string" || !rawToken.trim()) {
       return res.status(400).json({
         success: false,
         message: "Google token is required",
       });
     }
 
-    // Verify Firebase Google ID Token
-    // IMPORTANT:
-    // We pass our initialized Firebase Admin app here.
-    const decodedToken = await getAuth(adminApp).verifyIdToken(idToken);
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+    if (!googleClientId || !googleClientId.trim()) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "Google authentication is temporarily unavailable: GOOGLE_CLIENT_ID is not configured on server.",
+      });
+    }
 
-    const email = decodedToken.email;
+    // Verify Google ID Token via google-auth-library
+    let verifiedPayload;
+    try {
+      verifiedPayload = await verifyGoogleIdToken(rawToken, googleClientId);
+    } catch (verifyError) {
+      const status = verifyError.statusCode || 401;
+      return res.status(status).json({
+        success: false,
+        message: verifyError.message || "Google authentication failed",
+      });
+    }
 
-    const fullName =
-      decodedToken.name ||
-      decodedToken.email?.split("@")[0] ||
-      "Google User";
+    const { googleId, email, name: fullName, avatar: profileImage } =
+      verifiedPayload;
 
     if (!email) {
       return res.status(400).json({
@@ -164,7 +175,7 @@ export const googleLogin = async (req, res) => {
       });
     }
 
-    // Find Existing User
+    // Find Existing User by email
     let user = await User.findOne({ email });
 
     // Create User if not exists
@@ -172,8 +183,12 @@ export const googleLogin = async (req, res) => {
       user = await User.create({
         fullName,
         email,
-        password: `google_${decodedToken.uid}_${Date.now()}`,
+        password: `google_${googleId}_${Date.now()}`,
+        profileImage: profileImage || "",
       });
+    } else if (!user.profileImage && profileImage) {
+      user.profileImage = profileImage;
+      await user.save();
     }
 
     // Generate Our Own JWT
@@ -187,24 +202,26 @@ export const googleLogin = async (req, res) => {
       }
     );
 
-    // Store JWT in HTTP-only Cookie
-   res.cookie("token", token, cookieOptions);
+    // Store JWT in HTTP-only Cookie for backward compatibility
+    res.cookie("token", token, cookieOptions);
 
     return res.status(200).json({
       success: true,
       message: "Google Login Successful",
+      token,
       user: {
         id: user._id,
         fullName: user.fullName,
         email: user.email,
+        profileImage: user.profileImage,
       },
     });
   } catch (error) {
     console.log("Google Login Error:", error);
 
-    return res.status(401).json({
+    return res.status(500).json({
       success: false,
-      message: "Google authentication failed",
+      message: "Internal Server Error",
     });
   }
 };
